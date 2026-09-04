@@ -86,6 +86,21 @@ type DashboardState struct {
 	Notes         map[string]string
 	Errors        []CollectorError
 	Collectors    []string
+	// Accounts holds each provider's CLI login/plan state (subscription vs.
+	// API key, session/weekly usage allowance) where a collector reports it.
+	Accounts map[model.Provider]model.AccountStatus
+	// Waterfall is the Waterfall view's per-minute matrix: the busiest
+	// models plus the synthetic Agent (subagent turns) and Background
+	// (non-interactive poll-collector usage) rows, over the same window as
+	// each ProviderState.Series.
+	Waterfall []WaterfallRow
+}
+
+// WaterfallRow is one row of the Waterfall view.
+type WaterfallRow struct {
+	Label    string
+	Provider model.Provider // "" for the synthetic Agent/Background rows
+	Series   []float64      // per-minute totals, aligned with ProviderState.Series
 }
 
 // ProviderOrDefault returns the state for p, or a zero-valued one.

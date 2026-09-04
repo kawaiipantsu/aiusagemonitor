@@ -25,6 +25,10 @@ func (e *Engine) Snapshot() *DashboardState {
 	}
 	errs := append([]CollectorError(nil), e.errs...)
 	colls := append([]string(nil), e.collNames...)
+	accounts := make(map[model.Provider]model.AccountStatus, len(e.accounts))
+	for k, v := range e.accounts {
+		accounts[k] = v
+	}
 	e.mu.RUnlock()
 
 	now := time.Now()
@@ -43,6 +47,7 @@ func (e *Engine) Snapshot() *DashboardState {
 		Errors:     errs,
 		Collectors: colls,
 		EventsSeen: eventsSeen,
+		Accounts:   accounts,
 	}
 
 	// Per-provider minute-bucketed series over the window.
@@ -83,6 +88,10 @@ func (e *Engine) Snapshot() *DashboardState {
 	sessions := map[string]*sessAcc{}
 	fiveAgo := now.Add(-5 * time.Minute)
 
+	modelSeries := map[wfKey][]float64{}
+	agentSeries := make([]float64, nBuckets)
+	backgroundSeries := make([]float64, nBuckets)
+
 	for i := range events {
 		ev := events[i]
 		p := ev.Provider
@@ -113,6 +122,23 @@ func (e *Engine) Snapshot() *DashboardState {
 			ps.ModelCost[ev.Model] += ev.CostUSD
 			ds.Totals = ds.Totals.Add(ev.Usage)
 			ds.TotalCost += ev.CostUSD
+
+			total := float64(ev.Usage.Total())
+			if ev.Model != "" {
+				key := wfKey{p, ev.Model}
+				ser := modelSeries[key]
+				if ser == nil {
+					ser = make([]float64, nBuckets)
+					modelSeries[key] = ser
+				}
+				ser[bi] += total
+			}
+			if ev.IsAgent {
+				agentSeries[bi] += total
+			}
+			if ev.Kind == "poll" {
+				backgroundSeries[bi] += total
+			}
 		}
 
 		if ev.SessionID != "" {
@@ -188,7 +214,55 @@ func (e *Engine) Snapshot() *DashboardState {
 		ds.Sessions = ds.Sessions[:60]
 	}
 
+	ds.Waterfall = buildWaterfall(modelSeries, agentSeries, backgroundSeries)
+
 	return ds
+}
+
+// wfKey identifies one model-usage series within a snapshot.
+type wfKey struct {
+	provider model.Provider
+	model    string
+}
+
+// buildWaterfall picks the busiest models (capped, so the view stays
+// legible) and always appends the Agent and Background rows, even at zero,
+// so the shape of the view doesn't jump around as those turn on and off.
+func buildWaterfall(modelSeries map[wfKey][]float64, agentSeries, backgroundSeries []float64) []WaterfallRow {
+	const maxModelRows = 8
+	type ranked struct {
+		provider model.Provider
+		model    string
+		series   []float64
+		total    float64
+	}
+	rows := make([]ranked, 0, len(modelSeries))
+	for k, ser := range modelSeries {
+		var sum float64
+		for _, v := range ser {
+			sum += v
+		}
+		rows = append(rows, ranked{k.provider, k.model, ser, sum})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].total != rows[j].total {
+			return rows[i].total > rows[j].total
+		}
+		return rows[i].model < rows[j].model
+	})
+	if len(rows) > maxModelRows {
+		rows = rows[:maxModelRows]
+	}
+
+	out := make([]WaterfallRow, 0, len(rows)+2)
+	for _, r := range rows {
+		out = append(out, WaterfallRow{Label: r.provider.Title() + " " + r.model, Provider: r.provider, Series: r.series})
+	}
+	out = append(out,
+		WaterfallRow{Label: "Agent", Series: agentSeries},
+		WaterfallRow{Label: "Background", Series: backgroundSeries},
+	)
+	return out
 }
 
 func limitsForProvider(all []model.Limit, p model.Provider) []model.Limit {

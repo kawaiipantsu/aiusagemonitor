@@ -27,11 +27,12 @@ const (
 	tabSessions
 	tabHistory
 	tabProfile
+	tabWaterfall
 	tabSettings
 	tabHelp
 )
 
-var tabNames = []string{"Dashboard", "Sessions", "History", "Profile", "Settings", "Help"}
+var tabNames = []string{"Dashboard", "Sessions", "History", "Profile", "Waterfall", "Settings", "Help"}
 
 // Model is the Bubble Tea root model.
 type Model struct {
@@ -51,6 +52,7 @@ type Model struct {
 	sessions  *views.Sessions
 	history   *views.History
 	profile   *views.Profile
+	waterfall *views.Waterfall
 	settings  *views.Settings
 	help      *views.Help
 
@@ -70,6 +72,7 @@ func New(ctx context.Context, cfg *config.Config, st *store.Store, eng *engine.E
 		sessions:  views.NewSessions(),
 		history:   &views.History{},
 		profile:   &views.Profile{},
+		waterfall: &views.Waterfall{},
 		settings:  views.NewSettings(),
 		help:      &views.Help{},
 	}
@@ -80,6 +83,8 @@ func New(ctx context.Context, cfg *config.Config, st *store.Store, eng *engine.E
 		m.active = tabHistory
 	case "profile":
 		m.active = tabProfile
+	case "waterfall":
+		m.active = tabWaterfall
 	case "settings":
 		m.active = tabSettings
 	case "help":
@@ -190,6 +195,8 @@ func (m *Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "right", "l":
 			m.history.Cycle(true)
 		}
+	case tabHelp:
+		m.help.Update(msg, m.viewCtx())
 	}
 	return m, nil
 }
@@ -249,6 +256,8 @@ func (m *Model) View() string {
 		content = m.history.View(c)
 	case tabProfile:
 		content = m.profile.View(c)
+	case tabWaterfall:
+		content = m.waterfall.View(c)
 	case tabSettings:
 		content = m.settings.View(c)
 	case tabHelp:
@@ -259,10 +268,20 @@ func (m *Model) View() string {
 	return lipgloss.JoinVertical(lipgloss.Left, tabBar, content, status)
 }
 
+// tabIcons mirrors tabNames' order.
+func tabIcons(ic theme.Icons) []string {
+	return []string{ic.Dashboard, ic.Sessions, ic.History, ic.Profile, ic.Waterfall, ic.Settings, ic.Help}
+}
+
 func (m *Model) renderTabBar(s ui.Styles) string {
+	icons := tabIcons(theme.IconsFor(m.cfg.UI.NerdFont))
 	var b strings.Builder
 	for i, name := range tabNames {
-		label := fmt.Sprintf("%d %s", i+1, name)
+		icon := ""
+		if i < len(icons) {
+			icon = icons[i] + " "
+		}
+		label := fmt.Sprintf("%d %s%s", i+1, icon, name)
 		if tab(i) == m.active {
 			b.WriteString(s.TabActive.Render(label))
 		} else {
@@ -274,11 +293,12 @@ func (m *Model) renderTabBar(s ui.Styles) string {
 }
 
 func (m *Model) renderStatusBar(s ui.Styles) string {
+	ic := theme.IconsFor(m.cfg.UI.NerdFont)
 	left := "aiusagemonitor"
 	if m.paused {
-		left = s.Warning.Render("⏸ PAUSED") + "  " + left
+		left = s.Warning.Render(ic.Paused+" PAUSED") + "  " + left
 	} else {
-		left = s.Success.Render("● live") + "  " + left
+		left = s.Success.Render(ic.Live+" live") + "  " + left
 	}
 	if m.state != nil && len(m.state.Collectors) > 0 {
 		left += s.Subtle.Render("  ·  " + strings.Join(m.state.Collectors, ", "))

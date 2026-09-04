@@ -37,7 +37,12 @@ type claudeLine struct {
 	Cwd       string `json:"cwd"`
 	UUID      string `json:"uuid"`
 	RequestID string `json:"requestId"`
-	Message   struct {
+	// IsSidechain marks a turn run by a subagent (the Task tool's sidechain
+	// conversations, also written under a session's subagents/ directory)
+	// rather than the main thread — the Waterfall view's "Agent" row.
+	IsSidechain bool   `json:"isSidechain"`
+	AgentID     string `json:"agentId"`
+	Message     struct {
 		Model string `json:"model"`
 		Role  string `json:"role"`
 		Usage struct {
@@ -75,6 +80,7 @@ func (c *ClaudeCode) Run(ctx context.Context, out chan<- Emission) error {
 			SessionLabel: label,
 			Model:        l.Message.Model,
 			Kind:         "message",
+			IsAgent:      l.IsSidechain,
 			Dedup:        "cc:" + l.SessionID + ":" + dedup,
 			Usage: model.TokenUsage{
 				InputTokens:      u.InputTokens,

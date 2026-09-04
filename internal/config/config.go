@@ -66,6 +66,18 @@ type LogsConfig struct {
 	PollInterval time.Duration `yaml:"poll_interval"`
 	// Backfill controls how much history is ingested on first start.
 	Backfill time.Duration `yaml:"backfill"`
+	// ClaudeAccountStatus reads Claude Code's own local cache (~/.claude.json,
+	// ~/.claude/.credentials.json) to show the login type (Claude.ai
+	// subscription vs. a console API key) and the Pro/Max session & weekly
+	// usage allowance, including "low priority" throttling. It only ever
+	// reads plan/quota metadata — never the OAuth tokens, email or name.
+	ClaudeAccountStatus *bool `yaml:"claude_account_status,omitempty"`
+}
+
+// AccountStatusEnabled reports whether the Claude account-status reader
+// should run (default true; only "false" turns it off).
+func (l LogsConfig) AccountStatusEnabled() bool {
+	return l.ClaudeAccountStatus == nil || *l.ClaudeAccountStatus
 }
 
 // ProxyConfig configures the built-in capture proxy.
@@ -96,8 +108,12 @@ type UIConfig struct {
 	RefreshRate  time.Duration `yaml:"refresh_rate"`
 	WindowMin    int           `yaml:"window_minutes"` // dashboard time window
 	Use24Hour    bool          `yaml:"use_24h"`
-	StartView    string        `yaml:"start_view"` // dashboard|sessions|history|profile|settings
+	StartView    string        `yaml:"start_view"` // dashboard|sessions|history|profile|waterfall|settings
 	MouseEnabled bool          `yaml:"mouse_enabled"`
+	// NerdFont switches chrome icons (tab bar, status bar) to Nerd Font
+	// glyphs. Off by default: they render as tofu/boxes without a patched
+	// Nerd Font installed in the terminal.
+	NerdFont bool `yaml:"nerd_font"`
 }
 
 // Config is the whole document.

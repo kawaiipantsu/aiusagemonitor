@@ -116,6 +116,12 @@ func (v *Settings) buildFields(c Ctx) []field {
 		options: boolOptions(),
 		setIdx:  func(i int) { cfg.Demo = i == 1 },
 	})
+	fs = append(fs, field{
+		kind: kindEnum, label: "Nerd Font icons", hint: "tab/status bar glyphs — needs a patched Nerd Font in your terminal",
+		get:     func() string { return boolOptions()[boolIdx(cfg.UI.NerdFont)] },
+		options: boolOptions(),
+		setIdx:  func(i int) { cfg.UI.NerdFont = i == 1 },
+	})
 
 	for _, p := range model.AllProviders {
 		pc := cfg.Providers[p]
@@ -149,6 +155,14 @@ func (v *Settings) buildFields(c Ctx) []field {
 			get:     func() string { return pc.BaseURL },
 			setText: func(s string) { pc.BaseURL = s },
 		})
+		if p == model.ProviderAnthropic {
+			fs = append(fs, field{
+				kind: kindEnum, label: "Account status", hint: "login type + Pro/Max session & weekly allowance, from ~/.claude.json",
+				get:     func() string { return boolOptions()[boolIdx(cfg.Logs.AccountStatusEnabled())] },
+				options: boolOptions(),
+				setIdx:  func(i int) { on := i == 1; cfg.Logs.ClaudeAccountStatus = &on },
+			})
+		}
 	}
 
 	fs = append(fs, field{kind: kindHeader, label: "Local proxy"})
@@ -377,6 +391,11 @@ func (v *Settings) View(c Ctx) string {
 	}
 	labelW := 26
 	valueW := clampInt(c.Width-labelW-20, 16, 60)
+	// Budget left for the hint text after the border/padding, cursor, label
+	// and value columns — without this, a long hint (many are 40-70+ chars)
+	// overflows the panel's right border and wraps at the *terminal* edge
+	// instead, breaking out of the box visually.
+	hintBudget := c.Width - 4 - 2 - labelW - 1 - valueW - 2
 
 	// Render every field to a line, remembering which field index (if any)
 	// produced it, so the viewport below can scroll while keeping the cursor
@@ -412,8 +431,8 @@ func (v *Settings) View(c Ctx) string {
 			}
 		}
 		hint := ""
-		if f.hint != "" {
-			hint = "  " + s.Subtle.Render(f.hint)
+		if f.hint != "" && hintBudget >= 4 {
+			hint = "  " + s.Subtle.Render(truncate(f.hint, hintBudget))
 		}
 		lines = append(lines, cursor+label+" "+value+hint)
 	}
@@ -459,4 +478,17 @@ func indexOf(opts []string, val string) int {
 		}
 	}
 	return 0
+}
+
+// truncate hard-clips s to at most width runes, marking the cut with an
+// ellipsis. Unlike components.Pad it never pads a short string out.
+func truncate(s string, width int) string {
+	r := []rune(s)
+	if len(r) <= width {
+		return s
+	}
+	if width <= 1 {
+		return "…"
+	}
+	return string(r[:width-1]) + "…"
 }

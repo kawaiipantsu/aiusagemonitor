@@ -197,6 +197,10 @@ type Event struct {
 	Usage        TokenUsage `json:"usage"`
 	CostUSD      float64    `json:"cost_usd"`
 	Kind         string     `json:"kind"` // "message" | "proxy" | "poll" | "demo"
+	// IsAgent marks a turn run by a subagent (e.g. Claude Code's Task-tool
+	// sidechains) rather than the main conversation thread. Live-only: not
+	// persisted, purely for the Waterfall view's Agent row.
+	IsAgent bool `json:"-"`
 	// Dedup is an optional idempotency key; collectors that may re-read the same
 	// record (log tailers) set it so the engine can drop duplicates.
 	Dedup string `json:"-"`
@@ -221,4 +225,79 @@ func (s Session) Duration() time.Duration {
 		return 0
 	}
 	return s.LastSeen.Sub(s.FirstSeen)
+}
+
+// LoginKind distinguishes how a CLI is currently authenticated to a vendor.
+// This is orthogonal to Limit: a Limit models a per-minute/per-day API rate
+// bucket, while LoginKind + UsageWindow model a subscription plan's own
+// session/weekly usage allowance (e.g. Claude Pro/Max via Claude Code).
+type LoginKind string
+
+const (
+	LoginSubscription LoginKind = "subscription" // OAuth: Claude.ai Pro/Max/Team/Enterprise plan
+	LoginAPIKey       LoginKind = "api_key"      // pay-as-you-go console API key
+	LoginUnknown      LoginKind = "unknown"
+)
+
+// UsageWindow is one subscription-plan allowance bucket (e.g. Claude Code's
+// rolling 5-hour session window or 7-day weekly window).
+type UsageWindow struct {
+	Kind     string    `json:"kind"`     // "session", "weekly", ...
+	Used     float64   `json:"used"`     // percent used, 0..100
+	ResetAt  time.Time `json:"reset_at"` // zero if unknown
+	Active   bool      `json:"active"`   // currently the binding/throttling constraint
+	Severity string    `json:"severity"` // "critical", "normal", ...
+}
+
+// Remaining returns the percent of the window still available.
+func (w UsageWindow) Remaining() float64 {
+	r := 100 - w.Used
+	if r < 0 {
+		return 0
+	}
+	if r > 100 {
+		return 100
+	}
+	return r
+}
+
+// ResetIn returns the duration until this window resets (0 if unknown/past).
+func (w UsageWindow) ResetIn(now time.Time) time.Duration {
+	if w.ResetAt.IsZero() {
+		return 0
+	}
+	d := w.ResetAt.Sub(now)
+	if d < 0 {
+		return 0
+	}
+	return d
+}
+
+// AccountStatus is a snapshot of a vendor CLI's own login/plan state, as
+// opposed to raw API rate limits. It never carries secrets (access tokens,
+// refresh tokens, email, or name) — only plan/quota metadata.
+type AccountStatus struct {
+	Provider    Provider      `json:"provider"`
+	Source      string        `json:"source"`
+	Login       LoginKind     `json:"login"`
+	PlanLabel   string        `json:"plan_label"` // "Pro", "Max", "Team", "API Console", ...
+	Windows     []UsageWindow `json:"windows"`
+	LowPriority bool          `json:"low_priority"` // currently throttled by a critical, active window
+	Observed    time.Time     `json:"observed"`
+	// FetchedAt is when the CLI itself last refreshed this data server-side
+	// (Claude Code's cachedUsageUtilization.fetchedAtMs) — NOT when this
+	// collector last read the file. The CLI may go a long time between
+	// refreshes, so Windows can lag well behind what `/status` or claude.ai
+	// shows live; surface this age rather than implying a real-time value.
+	FetchedAt time.Time `json:"fetched_at"`
+}
+
+// WindowByKind returns the window matching kind, if present.
+func (a AccountStatus) WindowByKind(kind string) (UsageWindow, bool) {
+	for _, w := range a.Windows {
+		if w.Kind == kind {
+			return w, true
+		}
+	}
+	return UsageWindow{}, false
 }

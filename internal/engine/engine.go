@@ -28,7 +28,8 @@ type Engine struct {
 	seen       map[string]struct{}      // dedup keys
 	seenOrder  []string                 // FIFO eviction for seen
 	limits     map[limitKey]model.Limit // latest per provider+kind+window
-	notes      map[string]string        // collector -> status
+	accounts   map[model.Provider]model.AccountStatus
+	notes      map[string]string // collector -> status
 	errs       []CollectorError
 	collNames  []string
 	startedAt  time.Time
@@ -59,6 +60,7 @@ func New(st *store.Store, cfg *config.Config) *Engine {
 		cfg:       cfg,
 		seen:      map[string]struct{}{},
 		limits:    map[limitKey]model.Limit{},
+		accounts:  map[model.Provider]model.AccountStatus{},
 		notes:     map[string]string{},
 		subs:      map[chan *DashboardState]struct{}{},
 		startedAt: time.Now(),
@@ -233,6 +235,17 @@ func (e *Engine) ingest(em collector.Emission) {
 		e.limits[limitKey{l.Provider, l.Kind, l.Window}] = l
 		e.mu.Unlock()
 		e.store.BufferLimit(l)
+	}
+	if em.Account != nil {
+		a := *em.Account
+		if a.Observed.IsZero() {
+			a.Observed = time.Now()
+		}
+		e.mu.Lock()
+		e.accounts[a.Provider] = a
+		e.mu.Unlock()
+		// Account status is a live login/plan snapshot, not a usage event —
+		// it isn't persisted; History/Profile are about token usage over time.
 	}
 	if em.Event != nil {
 		ev := *em.Event

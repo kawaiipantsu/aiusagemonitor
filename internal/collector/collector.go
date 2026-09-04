@@ -12,11 +12,12 @@ import (
 // Emission is one unit of output from a collector. Either Event or Limit (or
 // both) may be set; Err carries a non-fatal problem the UI can surface.
 type Emission struct {
-	Event  *model.Event
-	Limit  *model.Limit
-	Err    error
-	Source string
-	Note   string // optional human status ("watching 3 files", "polled ok")
+	Event   *model.Event
+	Limit   *model.Limit
+	Account *model.AccountStatus // vendor CLI login/plan state (Claude Code, ...)
+	Err     error
+	Source  string
+	Note    string // optional human status ("watching 3 files", "polled ok")
 }
 
 // Collector is a long-running observer.

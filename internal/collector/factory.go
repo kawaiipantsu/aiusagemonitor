@@ -54,7 +54,11 @@ func logCollectorsFor(prov model.Provider, cfg *config.Config) []Collector {
 	bf := cfg.Logs.Backfill
 	switch prov {
 	case model.ProviderAnthropic:
-		return []Collector{&ClaudeCode{Dir: cfg.Logs.ClaudeCodeDir, Interval: iv, Backfill: bf}}
+		cs := []Collector{&ClaudeCode{Dir: cfg.Logs.ClaudeCodeDir, Interval: iv, Backfill: bf}}
+		if cfg.Logs.AccountStatusEnabled() {
+			cs = append(cs, &ClaudeAccount{})
+		}
+		return cs
 	case model.ProviderOpenAI:
 		return []Collector{&Codex{Dir: cfg.Logs.CodexDir, Interval: iv, Backfill: bf}}
 	case model.ProviderGoogle:
