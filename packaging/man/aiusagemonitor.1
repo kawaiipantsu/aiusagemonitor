@@ -1,0 +1,85 @@
+.TH AIUSAGEMONITOR 1 "2026" "aiusagemonitor" "User Commands"
+.SH NAME
+aiusagemonitor \- live TUI usage/limit monitor for OpenAI, Claude, Google Gemini and xAI
+.SH SYNOPSIS
+.B aiusagemonitor
+[\fIflags\fR]
+.br
+.B aiusagemonitor
+\fIcommand\fR [\fIflags\fR]
+.SH DESCRIPTION
+.B aiusagemonitor
+is a terminal UI that shows live token usage, rate limits, cost and
+historic statistics for the major AI vendor APIs. It gathers data by
+tailing local AI coding-assistant session logs (Claude Code, Codex CLI,
+Gemini CLI), through a built-in local capture proxy, or by polling a
+vendor's usage/admin API, and persists everything to a local SQLite
+database for historic summaries and usage profiling.
+.SH COMMANDS
+.TP
+(none)
+Launch the interactive TUI. This is the default when no subcommand is given.
+.TP
+.B report
+Print a text or JSON usage summary for a time range and exit. Useful in
+scripts, cron jobs or a status bar.
+.TP
+.B proxy
+Run the capture proxy headlessly (no TUI), logging status to stdout.
+.TP
+.B paths
+Print the resolved config file and database paths.
+.TP
+.B version
+Print the version and exit.
+.SH FLAGS (TUI)
+.TP
+.B \-config \fIPATH\fR
+Config file path (default: \fI~/.config/aiusagemonitor/config.yaml\fR).
+.TP
+.B \-db \fIPATH\fR
+History database path (overrides the config file).
+.TP
+.B \-demo
+Clean showcase mode: only synthetic traffic is shown, every real collector
+is disabled for the run.
+.TP
+.B \-theme \fINAME\fR
+Start with the given theme.
+.TP
+.B \-no-mouse
+Disable mouse reporting.
+.SH KEY BINDINGS
+.TP
+.B tab / shift+tab
+Next / previous view.
+.TP
+.B 1-6
+Jump directly to a view.
+.TP
+.B t / T
+Next / previous theme.
+.TP
+.B p
+Pause / resume live updates.
+.TP
+.B r
+Force an immediate refresh.
+.TP
+.B ?
+Open the Help view.
+.TP
+.B q, ctrl+c
+Quit.
+.SH FILES
+.TP
+.I ~/.config/aiusagemonitor/config.yaml
+Configuration, including provider connection settings. Written with 0600
+permissions since it may hold API keys.
+.TP
+.I ~/.config/aiusagemonitor/history.db
+SQLite history database.
+.SH SEE ALSO
+Full documentation: https://github.com/kawaiipantsu/aiusagemonitor
+.br
+https://thugs.red
