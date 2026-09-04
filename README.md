@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="Go 1.24+" src="https://img.shields.io/badge/Go-1.24%2B-00add8">
+  <img alt="Go 1.25+" src="https://img.shields.io/badge/Go-1.25%2B-00add8">
   <img alt="TUI: Bubble Tea" src="https://img.shields.io/badge/TUI-Bubble%20Tea-d75fd7">
   <img alt="providers" src="https://img.shields.io/badge/providers-OpenAI%20%C2%B7%20Claude%20%C2%B7%20Gemini%20%C2%B7%20xAI-1f7a8c">
   <img alt="single binary" src="https://img.shields.io/badge/binary-single%20%C2%B7%20static-35c98b">
@@ -71,7 +71,7 @@ itself: no config file to hand-edit, though one exists if you want it.
 | **Collectors** | three ways to gather usage, mixed and matched per provider: **logs** (tail Claude Code / Codex CLI / Gemini CLI session transcripts locally — no key needed), **proxy** (a built-in local reverse proxy that records real request/response token counts *and* rate-limit headers as your SDK's traffic passes through), **poll** (periodically call a vendor's usage/admin API — coarser, needs an admin-scoped key). |
 | **CLI** | `report` (`--range 1h\|24h\|7d\|30d\|90d\|all`, `--json`) for scripts/cron &middot; `proxy` runs the capture proxy headlessly, no TUI &middot; `paths` prints the resolved config/db locations &middot; `version`. |
 | **Storage** | a local SQLite history (`modernc.org/sqlite`, pure Go — no cgo, no C toolchain needed to build or cross-compile) with configurable retention and automatic pruning. |
-| **Under it** | **Go 1.24+**, `CGO_ENABLED=0`, one static binary. TUI on [Bubble Tea](https://github.com/charmbracelet/bubbletea) / Bubbles / Lipgloss. Ten built-in themes (Midnight, Dracula, Nord, Gruvbox, Tokyo Night, Solarized, Matrix, Ember, Paper, High Contrast). |
+| **Under it** | **Go 1.25+**, `CGO_ENABLED=0`, one static binary. TUI on [Bubble Tea](https://github.com/charmbracelet/bubbletea) / Bubbles / Lipgloss. Ten built-in themes (Midnight, Dracula, Nord, Gruvbox, Tokyo Night, Solarized, Matrix, Ember, Paper, High Contrast). |
 
 ## Quick start
 
